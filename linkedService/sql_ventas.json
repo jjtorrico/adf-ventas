@@ -1,0 +1,17 @@
+{
+	"name": "sql_ventas",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"server": "sql-ucb-sisger14581775.database.windows.net",
+			"database": "dbVentas",
+			"encrypt": "mandatory",
+			"trustServerCertificate": false,
+			"authenticationType": "SQL",
+			"userName": "joel",
+			"encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQEJCRDY3NzMzLTQ2QkUtNDAyOC1BQ0Q0LUIzNzM1MTdGRUU4OV9mZjQ0YjBlZi0xYjBhLTQ0YjEtYjI1ZS04Y2Q4ZDBkMjU2MjkiDQp9"
+		}
+	}
+}
