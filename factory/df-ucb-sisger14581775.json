@@ -1,0 +1,15 @@
+{
+	"name": "df-ucb-sisger14581775",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "50a0a34c-cf0c-43bf-bbe0-e846284cf0ef",
+		"tenantId": "cc28633f-12b8-46cb-bc15-951dae239b4d"
+	}
+}
