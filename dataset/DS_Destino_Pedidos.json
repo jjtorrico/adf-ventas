@@ -1,0 +1,87 @@
+{
+	"name": "DS_Destino_Pedidos",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "sql_ventas",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "sql"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "pedido_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "fecha_pedido",
+				"type": "date"
+			},
+			{
+				"name": "hora_pedido",
+				"type": "time",
+				"scale": 0
+			},
+			{
+				"name": "cliente_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "sucursal_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "canal",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tipo_servicio",
+				"type": "nvarchar"
+			},
+			{
+				"name": "estado_pedido",
+				"type": "nvarchar"
+			},
+			{
+				"name": "promocion_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "subtotal",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			},
+			{
+				"name": "costo_delivery",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			},
+			{
+				"name": "descuento",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			},
+			{
+				"name": "impuesto",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			},
+			{
+				"name": "total_pedido",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "pedidos"
+		}
+	}
+}

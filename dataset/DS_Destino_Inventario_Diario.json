@@ -1,0 +1,61 @@
+{
+	"name": "DS_Destino_Inventario_Diario",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "sql_ventas",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "sql"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "inventario_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "fecha_inventario",
+				"type": "date"
+			},
+			{
+				"name": "sucursal_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "producto_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "stock_inicial",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "entradas",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "salidas",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "stock_final",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "punto_reorden",
+				"type": "int",
+				"precision": 10
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "inventario_diario"
+		}
+	}
+}

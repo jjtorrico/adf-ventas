@@ -1,0 +1,45 @@
+{
+	"name": "DS_Destino_Calificaciones",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "sql_ventas",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "sql"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "calificacion_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "pedido_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "cliente_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "fecha_calificacion",
+				"type": "date"
+			},
+			{
+				"name": "puntuacion",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "comentario",
+				"type": "nvarchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "calificaciones"
+		}
+	}
+}

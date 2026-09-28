@@ -1,0 +1,45 @@
+{
+	"name": "DS_Destino_Promociones",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "sql_ventas",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "sql"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "promocion_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "nombre_promocion",
+				"type": "nvarchar"
+			},
+			{
+				"name": "fecha_inicio",
+				"type": "date"
+			},
+			{
+				"name": "fecha_fin",
+				"type": "date"
+			},
+			{
+				"name": "porcentaje_descuento",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "canal_aplicable",
+				"type": "nvarchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "promociones"
+		}
+	}
+}
