@@ -1,0 +1,78 @@
+{
+	"name": "df_pagos",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Pagos",
+						"type": "DatasetReference"
+					},
+					"name": "origenPagos"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Pagos",
+						"type": "DatasetReference"
+					},
+					"name": "destinoPagosSQL"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarPagos"
+				},
+				{
+					"name": "validarPagos"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          pago_id as string,",
+				"          pedido_id as string,",
+				"          fecha_pago as string,",
+				"          metodo_pago as string,",
+				"          estado_pago as string,",
+				"          monto_pagado as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> origenPagos",
+				"origenPagos derive(pago_id = upper(trim(pago_id)),",
+				"          pedido_id = upper(trim(pedido_id)),",
+				"          fecha_pago = toDate(fecha_pago,'yyyy-MM-dd'),",
+				"          metodo_pago = initCap(lower(trim(metodo_pago))),",
+				"          estado_pago = initCap(lower(trim(estado_pago))),",
+				"          monto_pagado = toDecimal(replace(trim(monto_pagado), ',', '.'),10,2)) ~> normalizarPagos",
+				"normalizarPagos split(regexMatch(pago_id,'^PAG[0-9]{6}$') &&\r",
+				"regexMatch(pedido_id,'^PED[0-9]{6}$') &&\r",
+				"!isNull(fecha_pago) &&\r",
+				"length(trim(metodo_pago)) > 0 &&\r",
+				"length(trim(estado_pago)) > 0 &&\r",
+				"monto_pagado > 0,",
+				"     disjoint: false) ~> validarPagos@(validos, invalidos)",
+				"validarPagos@validos sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          pago_id as string,",
+				"          pedido_id as string,",
+				"          fecha_pago as date,",
+				"          metodo_pago as string,",
+				"          estado_pago as string,",
+				"          monto_pagado as decimal(10,2)",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoPagosSQL"
+			]
+		}
+	}
+}

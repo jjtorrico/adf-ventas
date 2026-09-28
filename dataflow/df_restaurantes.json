@@ -1,0 +1,91 @@
+{
+	"name": "df_restaurantes",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Restaurantes",
+						"type": "DatasetReference"
+					},
+					"name": "origenRestaurantes"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Restaurantes",
+						"type": "DatasetReference"
+					},
+					"name": "destinoRestaurantesSQL"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarRestaurantes"
+				},
+				{
+					"name": "validarRestaurantes"
+				},
+				{
+					"name": "seleccionarSalidaRestaurantes"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          restaurante_id as string,",
+				"          nombre_restaurante as string,",
+				"          tipo_cocina as string,",
+				"          calificacion_promedio as string,",
+				"          activo as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> origenRestaurantes",
+				"origenRestaurantes derive(restaurante_id = upper(trim(restaurante_id)),",
+				"          nombre_restaurante = initCap(lower(trim(nombre_restaurante))),",
+				"          tipo_cocina = initCap(lower(trim(tipo_cocina))),",
+				"          calificacion_promedio = toDecimal(replace(trim(calificacion_promedio), ',', '.'),3,1),",
+				"          activo = initCap(lower(trim(activo)))) ~> normalizarRestaurantes",
+				"normalizarRestaurantes split(regexMatch(restaurante_id,'^RES[0-9]{3}$') &&\r",
+				"length(trim(nombre_restaurante)) > 0 &&\r",
+				"length(trim(tipo_cocina)) > 0 &&\r",
+				"calificacion_promedio >= 0 &&\r",
+				"calificacion_promedio <= 5 &&\r",
+				"(\r",
+				"    lower(trim(activo)) == 'sí' ||\r",
+				"    lower(trim(activo)) == 'si' ||\r",
+				"    lower(trim(activo)) == 'no'\r",
+				"),",
+				"     disjoint: false) ~> validarRestaurantes@(validos, invalidos)",
+				"validarRestaurantes@validos select(mapColumn(",
+				"          restaurante_id,",
+				"          nombre_restaurante,",
+				"          tipo_cocina,",
+				"          calificacion_promedio,",
+				"          activo",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarSalidaRestaurantes",
+				"seleccionarSalidaRestaurantes sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          restaurante_id as string,",
+				"          nombre_restaurante as string,",
+				"          tipo_cocina as string,",
+				"          calificacion_promedio as decimal(3,1),",
+				"          activo as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoRestaurantesSQL"
+			]
+		}
+	}
+}
