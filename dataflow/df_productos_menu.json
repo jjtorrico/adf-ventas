@@ -1,0 +1,129 @@
+{
+	"name": "df_productos_menu",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Productos_Menu",
+						"type": "DatasetReference"
+					},
+					"name": "origenProductos"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Productos_Menu",
+						"type": "DatasetReference"
+					},
+					"name": "destinoProductosSQL"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarProductos"
+				},
+				{
+					"name": "validarProductos"
+				},
+				{
+					"name": "contarDuplicadosProductos"
+				},
+				{
+					"name": "unirConteoProductos"
+				},
+				{
+					"name": "seleccionarProductos"
+				},
+				{
+					"name": "separarDuplicadosProductos"
+				},
+				{
+					"name": "seleccionarSalidaProductos"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          producto_id as string,",
+				"          nombre_producto as string,",
+				"          categoria as string,",
+				"          precio_lista as string,",
+				"          costo_estimado as string,",
+				"          disponible as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> origenProductos",
+				"origenProductos derive(producto_id = upper(trim(producto_id)),",
+				"          nombre_producto = initCap(lower(trim(nombre_producto))),",
+				"          categoria = initCap(lower(trim(categoria))),",
+				"          precio_lista = toDecimal(regexReplace(trim(precio_lista), '[^0-9.-]', ''), 10, 2),",
+				"          costo_estimado = toDecimal(regexReplace(trim(costo_estimado), '[^0-9.-]', ''), 10, 2),",
+				"          disponible = initCap(lower(trim(disponible)))) ~> normalizarProductos",
+				"normalizarProductos split(regexMatch(producto_id, '^PRO[0-9]{4}$') &&\r",
+				"length(trim(nombre_producto)) > 0 &&\r",
+				"length(trim(categoria)) > 0 &&\r",
+				"!isNull(precio_lista) &&\r",
+				"precio_lista > 0 &&\r",
+				"!isNull(costo_estimado) &&\r",
+				"costo_estimado >= 0 &&\r",
+				"(\r",
+				"    lower(trim(disponible)) == 'sí' ||\r",
+				"    lower(trim(disponible)) == 'si' ||\r",
+				"    lower(trim(disponible)) == 'no'\r",
+				"),",
+				"     disjoint: false) ~> validarProductos@(validos, invalidos)",
+				"validarProductos@validos aggregate(groupBy(producto_id),",
+				"     cantidad_id = count()) ~> contarDuplicadosProductos",
+				"validarProductos@validos, contarDuplicadosProductos join(validarProductos@validos@producto_id == contarDuplicadosProductos@producto_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> unirConteoProductos",
+				"unirConteoProductos select(mapColumn(",
+				"          producto_id = validarProductos@validos@producto_id,",
+				"          nombre_producto,",
+				"          categoria,",
+				"          precio_lista,",
+				"          costo_estimado,",
+				"          disponible,",
+				"          cantidad_id",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarProductos",
+				"seleccionarProductos split(cantidad_id == 1,",
+				"     disjoint: false) ~> separarDuplicadosProductos@(unicos, duplicados)",
+				"separarDuplicadosProductos@unicos select(mapColumn(",
+				"          producto_id,",
+				"          nombre_producto,",
+				"          categoria,",
+				"          precio_lista,",
+				"          costo_estimado,",
+				"          disponible",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarSalidaProductos",
+				"seleccionarSalidaProductos sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          producto_id as string,",
+				"          nombre_producto as string,",
+				"          categoria as string,",
+				"          precio_lista as decimal(10,2),",
+				"          costo_estimado as decimal(10,2),",
+				"          disponible as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoProductosSQL"
+			]
+		}
+	}
+}
