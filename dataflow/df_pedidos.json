@@ -1,0 +1,177 @@
+{
+	"name": "df_pedidos",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Pedidos",
+						"type": "DatasetReference"
+					},
+					"name": "origenPedidos"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Pedidos",
+						"type": "DatasetReference"
+					},
+					"name": "destinoPedidos"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarPedidos"
+				},
+				{
+					"name": "validarPedidos"
+				},
+				{
+					"name": "recalcularTotalPedido"
+				},
+				{
+					"name": "contarDuplicadosPedidos"
+				},
+				{
+					"name": "unirConteoPedidos"
+				},
+				{
+					"name": "seleccionarPedidos"
+				},
+				{
+					"name": "separarDuplicadosPedidos"
+				},
+				{
+					"name": "destinoPedidosSQL"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          pedido_id as string,",
+				"          fecha_pedido as string,",
+				"          hora_pedido as string,",
+				"          cliente_id as string,",
+				"          sucursal_id as string,",
+				"          canal as string,",
+				"          tipo_servicio as string,",
+				"          estado_pedido as string,",
+				"          promocion_id as string,",
+				"          subtotal as string,",
+				"          costo_delivery as string,",
+				"          descuento as string,",
+				"          impuesto as string,",
+				"          total_pedido as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> origenPedidos",
+				"origenPedidos derive(pedido_id = upper(trim(pedido_id)),",
+				"          fecha_pedido = iif(\r",
+				"    isDate(fecha_pedido,'yyyy-MM-dd'),\r",
+				"    toDate(fecha_pedido,'yyyy-MM-dd'),\r",
+				"    toDate(fecha_pedido,'dd/MM/yyyy')\r",
+				"),",
+				"          cliente_id = upper(trim(cliente_id)),",
+				"          sucursal_id = upper(trim(sucursal_id)),",
+				"          canal = iif(\r",
+				"    startsWith(lower(trim(canal)), 'app'),\r",
+				"    'Aplicación',\r",
+				"    initCap(lower(trim(canal)))\r",
+				"),",
+				"          tipo_servicio = initCap(lower(trim(tipo_servicio))),",
+				"          estado_pedido = initCap(lower(trim(estado_pedido))),",
+				"          promocion_id = upper(trim(promocion_id)),",
+				"          subtotal = toDecimal(replace(trim(subtotal), ',', '.'),10,2),",
+				"          costo_delivery = toDecimal(replace(trim(costo_delivery), ',', '.'),10,2),",
+				"          descuento = toDecimal(replace(trim(descuento), ',', '.'),10,2),",
+				"          impuesto = toDecimal(replace(trim(impuesto), ',', '.'),10,2),",
+				"          total_pedido = toDecimal(replace(trim(total_pedido), ',', '.'),10,2)) ~> normalizarPedidos",
+				"normalizarPedidos split(regexMatch(pedido_id,'^PED[0-9]{6}$') &&\r",
+				"regexMatch(cliente_id,'^CLI[0-9]{5}$') &&\r",
+				"regexMatch(sucursal_id,'^SUC[0-9]{3}$') &&\r",
+				"!isNull(fecha_pedido) &&\r",
+				"length(trim(hora_pedido)) > 0 &&\r",
+				"subtotal > 0 &&\r",
+				"costo_delivery >= 0 &&\r",
+				"descuento >= 0 &&\r",
+				"impuesto >= 0,",
+				"     disjoint: false) ~> validarPedidos@(validos, invalidos)",
+				"validarPedidos@validos derive(total_pedido = round(subtotal + costo_delivery - descuento + impuesto,2)) ~> recalcularTotalPedido",
+				"recalcularTotalPedido aggregate(groupBy(pedido_id),",
+				"     cantidad_id = count()) ~> contarDuplicadosPedidos",
+				"recalcularTotalPedido, contarDuplicadosPedidos join(validarPedidos@validos@pedido_id == contarDuplicadosPedidos@pedido_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> unirConteoPedidos",
+				"unirConteoPedidos select(mapColumn(",
+				"          pedido_id = validarPedidos@validos@pedido_id,",
+				"          fecha_pedido,",
+				"          hora_pedido,",
+				"          cliente_id,",
+				"          sucursal_id,",
+				"          canal,",
+				"          tipo_servicio,",
+				"          estado_pedido,",
+				"          promocion_id,",
+				"          subtotal,",
+				"          costo_delivery,",
+				"          descuento,",
+				"          impuesto,",
+				"          total_pedido,",
+				"          cantidad_id",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarPedidos",
+				"seleccionarPedidos split(cantidad_id == 1,",
+				"     disjoint: false) ~> separarDuplicadosPedidos@(unicos, duplicados)",
+				"separarDuplicadosPedidos@unicos select(mapColumn(",
+				"          pedido_id,",
+				"          fecha_pedido,",
+				"          hora_pedido,",
+				"          cliente_id,",
+				"          sucursal_id,",
+				"          canal,",
+				"          tipo_servicio,",
+				"          estado_pedido,",
+				"          promocion_id,",
+				"          subtotal,",
+				"          costo_delivery,",
+				"          descuento,",
+				"          impuesto,",
+				"          total_pedido",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> destinoPedidosSQL",
+				"destinoPedidosSQL sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          pedido_id as string,",
+				"          fecha_pedido as date,",
+				"          hora_pedido as timestamp,",
+				"          cliente_id as string,",
+				"          sucursal_id as string,",
+				"          canal as string,",
+				"          tipo_servicio as string,",
+				"          estado_pedido as string,",
+				"          promocion_id as string,",
+				"          subtotal as decimal(10,2),",
+				"          costo_delivery as decimal(10,2),",
+				"          descuento as decimal(10,2),",
+				"          impuesto as decimal(10,2),",
+				"          total_pedido as decimal(10,2)",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoPedidos"
+			]
+		}
+	}
+}
