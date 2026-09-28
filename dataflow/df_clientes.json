@@ -1,0 +1,137 @@
+{
+	"name": "df_clientes",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Clientes",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Clientes",
+						"type": "DatasetReference"
+					},
+					"name": "destinoClientesSQL"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarclientes"
+				},
+				{
+					"name": "validarclientes"
+				},
+				{
+					"name": "contarDuplicados"
+				},
+				{
+					"name": "unirConteoDuplicados"
+				},
+				{
+					"name": "separarDuplicados"
+				},
+				{
+					"name": "seleccionarClientes"
+				},
+				{
+					"name": "convertirTipos"
+				},
+				{
+					"name": "seleccionarSalidaClientes"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          cliente_id as string,",
+				"          nombre as string,",
+				"          email as string,",
+				"          telefono as string,",
+				"          ciudad as string,",
+				"          fecha_registro as string,",
+				"          segmento as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 derive(nombre = initCap(lower(trim(nombre))),",
+				"          cliente_id = upper(trim(cliente_id)),",
+				"          email = lower(trim(email)),",
+				"          telefono = regexReplace(trim(telefono), '[^0-9]', ''),",
+				"          ciudad = iif(\r",
+				"    upper(trim(ciudad)) == 'SCZ',\r",
+				"    'Santa Cruz de la Sierra',\r",
+				"    initCap(lower(trim(ciudad)))\r",
+				"),",
+				"          fecha_registro = trim(fecha_registro),",
+				"          segmento = initCap(lower(trim(segmento)))) ~> normalizarclientes",
+				"normalizarclientes split(regexMatch(cliente_id, '^CLI[0-9]{5}$') &&\r",
+				"length(trim(nombre)) > 0 &&\r",
+				"regexMatch(email, '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}$') &&\r",
+				"regexMatch(telefono, '^[0-9]{8}$') &&\r",
+				"length(trim(ciudad)) > 0 &&\r",
+				"isDate(fecha_registro, 'yyyy-MM-dd') &&\r",
+				"length(trim(segmento)) > 0,",
+				"     disjoint: false) ~> validarclientes@(validos, invalidos)",
+				"validarclientes@validos aggregate(groupBy(cliente_id),",
+				"     cantidad_id = count()) ~> contarDuplicados",
+				"validarclientes@validos, contarDuplicados join(validarclientes@validos@cliente_id == contarDuplicados@cliente_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> unirConteoDuplicados",
+				"seleccionarClientes split(cantidad_id == 1,",
+				"     disjoint: false) ~> separarDuplicados@(unicos, duplicados)",
+				"unirConteoDuplicados select(mapColumn(",
+				"          cliente_id = validarclientes@validos@cliente_id,",
+				"          nombre,",
+				"          email,",
+				"          telefono,",
+				"          ciudad,",
+				"          fecha_registro,",
+				"          segmento,",
+				"          cantidad_id",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarClientes",
+				"separarDuplicados@unicos derive(fecha_registro = toDate(fecha_registro,'yyyy-MM-dd')) ~> convertirTipos",
+				"convertirTipos select(mapColumn(",
+				"          cliente_id,",
+				"          nombre,",
+				"          email,",
+				"          telefono,",
+				"          ciudad,",
+				"          fecha_registro,",
+				"          segmento",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarSalidaClientes",
+				"seleccionarSalidaClientes sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          cliente_id as string,",
+				"          nombre as string,",
+				"          email as string,",
+				"          telefono as string,",
+				"          ciudad as string,",
+				"          fecha_registro as date,",
+				"          segmento as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoClientesSQL"
+			]
+		}
+	}
+}
