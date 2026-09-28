@@ -1,0 +1,115 @@
+{
+	"name": "df_inventario_diario",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Inventario_Diario",
+						"type": "DatasetReference"
+					},
+					"name": "origenInventario"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Inventario_Diario",
+						"type": "DatasetReference"
+					},
+					"name": "destinoInventarioSQL"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarInventario"
+				},
+				{
+					"name": "validarInventario"
+				},
+				{
+					"name": "recalcularStockFinal"
+				},
+				{
+					"name": "validarStockFinal"
+				},
+				{
+					"name": "seleccionarSalidaInventario"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          inventario_id as string,",
+				"          fecha_inventario as string,",
+				"          sucursal_id as string,",
+				"          producto_id as string,",
+				"          stock_inicial as string,",
+				"          entradas as string,",
+				"          salidas as string,",
+				"          stock_final as string,",
+				"          punto_reorden as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> origenInventario",
+				"origenInventario derive(inventario_id = upper(trim(inventario_id)),",
+				"          fecha_inventario = toDate(trim(fecha_inventario),'yyyy-MM-dd'),",
+				"          sucursal_id = upper(trim(sucursal_id)),",
+				"          producto_id = upper(trim(producto_id)),",
+				"          stock_inicial = toInteger(trim(stock_inicial)),",
+				"          entradas = toInteger(trim(entradas))\r",
+				",",
+				"          salidas = toInteger(trim(salidas)),",
+				"          stock_final = toInteger(trim(stock_final)),",
+				"          punto_reorden = toInteger(trim(punto_reorden))) ~> normalizarInventario",
+				"normalizarInventario split(regexMatch(inventario_id,'^INV[0-9]{6}$') &&\r",
+				"regexMatch(sucursal_id,'^SUC[0-9]{3}$') &&\r",
+				"regexMatch(producto_id,'^PRO[0-9]{4}$') &&\r",
+				"!isNull(fecha_inventario) &&\r",
+				"stock_inicial >= 0 &&\r",
+				"entradas >= 0 &&\r",
+				"salidas >= 0 &&\r",
+				"punto_reorden >= 0,",
+				"     disjoint: false) ~> validarInventario@(validos, invalidos)",
+				"validarInventario@validos derive(stock_final = stock_inicial + entradas - salidas) ~> recalcularStockFinal",
+				"recalcularStockFinal split(stock_final >= 0,",
+				"     disjoint: false) ~> validarStockFinal@(validosStock, stockInvalido)",
+				"validarStockFinal@validosStock select(mapColumn(",
+				"          inventario_id,",
+				"          fecha_inventario,",
+				"          sucursal_id,",
+				"          producto_id,",
+				"          stock_inicial,",
+				"          entradas,",
+				"          salidas,",
+				"          stock_final,",
+				"          punto_reorden",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarSalidaInventario",
+				"seleccionarSalidaInventario sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          inventario_id as string,",
+				"          fecha_inventario as date,",
+				"          sucursal_id as string,",
+				"          producto_id as string,",
+				"          stock_inicial as integer,",
+				"          entradas as integer,",
+				"          salidas as integer,",
+				"          stock_final as integer,",
+				"          punto_reorden as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoInventarioSQL"
+			]
+		}
+	}
+}

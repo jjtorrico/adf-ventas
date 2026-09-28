@@ -1,0 +1,103 @@
+{
+	"name": "df_entregas",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Entregas",
+						"type": "DatasetReference"
+					},
+					"name": "origenEntregas"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Entregas",
+						"type": "DatasetReference"
+					},
+					"name": "destinoEntregasSQL"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarEntregas"
+				},
+				{
+					"name": "validarEntregas"
+				},
+				{
+					"name": "seleccionarSalidaEntregas"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          entrega_id as string,",
+				"          pedido_id as string,",
+				"          repartidor_id as string,",
+				"          hora_salida as string,",
+				"          hora_entrega as string,",
+				"          tiempo_entrega_min as string,",
+				"          distancia_km as string,",
+				"          estado_entrega as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> origenEntregas",
+				"origenEntregas derive(entrega_id = upper(trim(entrega_id)),",
+				"          pedido_id = upper(trim(pedido_id)),",
+				"          repartidor_id = upper(trim(repartidor_id)),",
+				"          hora_salida = toTimestamp(trim(hora_salida),'yyyy-MM-dd HH:mm:ss'),",
+				"          hora_entrega = toTimestamp(trim(hora_entrega),'yyyy-MM-dd HH:mm:ss'),",
+				"          tiempo_entrega_min = toInteger(trim(tiempo_entrega_min)),",
+				"          distancia_km = toDecimal(replace(trim(distancia_km),',','.'),10,2),",
+				"          estado_entrega = initCap(lower(trim(estado_entrega)))) ~> normalizarEntregas",
+				"normalizarEntregas split(regexMatch(entrega_id,'^ENT[0-9]{6}$') &&\r",
+				"regexMatch(pedido_id,'^PED[0-9]{6}$') &&\r",
+				"regexMatch(repartidor_id,'^REP[0-9]{4}$') &&\r",
+				"!isNull(hora_salida) &&\r",
+				"distancia_km >= 0 &&\r",
+				"(\r",
+				"    isNull(tiempo_entrega_min) ||\r",
+				"    tiempo_entrega_min >= 0\r",
+				") &&\r",
+				"length(trim(estado_entrega)) > 0,",
+				"     disjoint: false) ~> validarEntregas@(validos, invalidos)",
+				"validarEntregas@validos select(mapColumn(",
+				"          entrega_id,",
+				"          pedido_id,",
+				"          repartidor_id,",
+				"          hora_salida,",
+				"          hora_entrega,",
+				"          tiempo_entrega_min,",
+				"          distancia_km,",
+				"          estado_entrega",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarSalidaEntregas",
+				"seleccionarSalidaEntregas sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          entrega_id as string,",
+				"          pedido_id as string,",
+				"          repartidor_id as string,",
+				"          hora_salida as timestamp,",
+				"          hora_entrega as timestamp,",
+				"          tiempo_entrega_min as integer,",
+				"          distancia_km as decimal(6,2),",
+				"          estado_entrega as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoEntregasSQL"
+			]
+		}
+	}
+}
