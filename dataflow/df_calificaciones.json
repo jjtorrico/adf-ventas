@@ -1,0 +1,91 @@
+{
+	"name": "df_calificaciones",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_Origen_Calificaciones",
+						"type": "DatasetReference"
+					},
+					"name": "origenCalificaciones"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_Destino_Calificaciones",
+						"type": "DatasetReference"
+					},
+					"name": "destinoCalificacionesSQL"
+				}
+			],
+			"transformations": [
+				{
+					"name": "normalizarCalificaciones"
+				},
+				{
+					"name": "validarCalificaciones"
+				},
+				{
+					"name": "seleccionarSalidaCalificaciones"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          calificacion_id as string,",
+				"          pedido_id as string,",
+				"          cliente_id as string,",
+				"          fecha_calificacion as string,",
+				"          puntuacion as string,",
+				"          comentario as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> origenCalificaciones",
+				"origenCalificaciones derive(calificacion_id = upper(trim(calificacion_id)),",
+				"          pedido_id = upper(trim(pedido_id)),",
+				"          cliente_id = upper(trim(cliente_id)),",
+				"          fecha_calificacion = toDate(trim(fecha_calificacion),'yyyy-MM-dd'),",
+				"          puntuacion = toInteger(trim(puntuacion)),",
+				"          comentario = trim(comentario)) ~> normalizarCalificaciones",
+				"normalizarCalificaciones split(regexMatch(calificacion_id,'^CAL[0-9]{6}$') &&\r",
+				"regexMatch(pedido_id,'^PED[0-9]{6}$') &&\r",
+				"regexMatch(cliente_id,'^CLI[0-9]{5}$') &&\r",
+				"!isNull(fecha_calificacion) &&\r",
+				"puntuacion >= 1 &&\r",
+				"puntuacion <= 5,",
+				"     disjoint: false) ~> validarCalificaciones@(validos, invalidos)",
+				"validarCalificaciones@validos select(mapColumn(",
+				"          calificacion_id,",
+				"          pedido_id,",
+				"          cliente_id,",
+				"          fecha_calificacion,",
+				"          puntuacion,",
+				"          comentario",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> seleccionarSalidaCalificaciones",
+				"seleccionarSalidaCalificaciones sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          calificacion_id as string,",
+				"          pedido_id as string,",
+				"          cliente_id as string,",
+				"          fecha_calificacion as date,",
+				"          puntuacion as integer,",
+				"          comentario as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> destinoCalificacionesSQL"
+			]
+		}
+	}
+}
